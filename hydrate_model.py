@@ -17,8 +17,22 @@ def loadCSV(filename):
 
 	return csvList
 	
+	
+def parseObject(movieID, obj, objType):
+	try:
+		retVal = ast.literal_eval(obj) if obj is not None else None
+		
+		return retVal if retVal is not None else []
+	except SyntaxError as e:
+		print 'Error encountered parsing {0} for movie ID: {1}'.format(objType, movieID)
+		return []
+		
 
 def extractProdComps(movieID, rawPC):
+	if type(rawPC) is not list:
+		print 'Error encountered extracting prod comps for movie ID: {0}'.format(movieID)
+		return []
+
 	companies = []
 	for companyDict in rawPC:
 		pcID = companyDict.get('id')
@@ -29,8 +43,12 @@ def extractProdComps(movieID, rawPC):
 
 
 def extractGenres(movieID, rawGenres):
+	if type(rawGenres) is not list:
+		print 'Error encountered extracting genres for movie ID: {0}'.format(movieID)
+		return []
+
 	genres = []
-	for genreDict in rawPC:
+	for genreDict in rawGenres:
 		genreID = genreDict.get('id')
 		genreName = genreDict.get('name')
 		genres.append([genreID, movieID, genreName])
@@ -39,11 +57,11 @@ def extractGenres(movieID, rawGenres):
 
 
 def extractMain(movieID, rawMeta):
-	originalTitle = rawMeta[8]
-	releaseDate = rawMeta[14]
-	budget = rawMeta[2]
-	revenue = rawMeta[15]
-	popularity = rawMeta[10]
+	originalTitle = rawMeta[8] if len(rawMeta) > 8 else None
+	releaseDate = rawMeta[14] if len(rawMeta) > 14 else None
+	budget = rawMeta[2] if len(rawMeta) > 2 else None
+	revenue = rawMeta[15] if len(rawMeta) > 15 else None
+	popularity = rawMeta[10] if len(rawMeta) > 10 else None
 	
 	movie = [movieID, originalTitle, releaseDate, budget, revenue, popularity]
 	
@@ -64,22 +82,37 @@ def mane():
 	
 	# Iterate through metadata
 	workingList = dataList[1:]
-	for line in workingList:
-		movieID = line[5]
+	for idx, line in enumerate(workingList):
+		try:
+			movieID = int(line[5])
+		except ValueError as e:
+			print 'Invalid movieID for line: {0}'.format(idx)
+			continue
 		
-		# Lists of dicts, represented as a string
-		genres = ast.literal_eval(line[3])
-		prodComps = ast.literal_eval(line[12])
+		try:
+			rawGenres = line[3]
+			workingGenres = parseObject(movieID, rawGenres, 'genre')
+			genreLines = extractGenres(movieID, workingGenres)
+			genres.extend(genreLines)
+		except IndexError as e:
+			print 'Missing genre for movie ID: {0}'.format(movieID) 
+		try:
+			rawPCs = line[12]
+			prodComps = parseObject(movieID, line[12], 'prod comp')
+			pcLines = extractProdComps(movieID, prodComps)
+			pcs.extend(pcLines)
+		except IndexError as e:
+			print 'Missing prod comp for movie ID: {0}'.format(movieID)
 		
 		# Modular extraction & append to respective output lists
 		movieLine = extractMain(movieID, line)
 		movies.append(movieLine)
 		
-		genreLines = extractGenres(movieID, genres)
-		genres.extend(genreLines)
 		
-		pcLines = extractProdComps(movieID, prodComps)
-		pcs.extend(pcLines)
+		
+		
+		
+	return (movies, genres, pcs)
 		
 	
 	# Write out files
