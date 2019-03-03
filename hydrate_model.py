@@ -1,4 +1,5 @@
 import csv
+import ast
 
 
 # Pre-vars
@@ -15,15 +16,33 @@ def loadCSV(filename):
 
 	return csvList
 
+def extractProdComps(movieID, rawPC):
+
+
+def extractGenres(movieID, rawGenres):
+
+
+def extractMain(movieID, rawMeta):
+
 
 def mane():
 	# Load CSV as list
-	
+	dataList = loadCSV(movieMDFilename)
 	
 	# Hold onto header
-	
+	header = dataList[0]
 	
 	# Iterate through metadata
+	workingList = dataList[1:]
+	for line in workingList:
+		movieID = line[5]
+		
+		# Lists of dicts, represented as a string
+		genres = ast.literal_eval(line[3])
+		prodComps = ast.literal_eval(line[12])
+		
+	
+	# Write out files
 	
 	
 	print 'done!'
