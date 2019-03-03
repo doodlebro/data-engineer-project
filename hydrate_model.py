@@ -1,5 +1,6 @@
 import csv
 import ast
+import os
 
 
 # Pre-vars
@@ -26,6 +27,27 @@ def parseObject(movieID, obj, objType):
 	except SyntaxError as e:
 		print 'Error encountered parsing {0} for movie ID: {1}'.format(objType, movieID)
 		return []
+	
+		
+def mineMovieID(rawLine, lineIDX, expIDX):
+	try:
+		movieID = int(rawLine[expIDX])
+	except ValueError as e:
+		print 'Invalid movieID for line: {0}'.format(lineIDX)
+		movieID = -1
+	
+	return movieID
+	
+
+def mineListObj(rawLine, objType, expIDX, movieID):
+	try:
+		rawObj = rawLine[expIDX]
+		workingObj = parseObject(movieID, rawObj, objType)
+	except IndexError as e:
+		print 'Missing {0} for movie ID: {1}'.format(objType, movieID)
+		workingObj = None
+		
+	return workingObj
 		
 
 def extractProdComps(movieID, rawPC):
@@ -68,6 +90,12 @@ def extractMain(movieID, rawMeta):
 	return movie
 	
 	
+def writeOut(finalList, outFile):
+	with open(outFile, 'wb') as f:
+		fileWriter = csv.writer(f)
+		fileWriter.writerows(finalList)
+	
+	
 def mane():
 	# Load CSV as list
 	dataList = loadCSV(movieMDFilename)
@@ -83,39 +111,26 @@ def mane():
 	# Iterate through metadata
 	workingList = dataList[1:]
 	for idx, line in enumerate(workingList):
-		try:
-			movieID = int(line[5])
-		except ValueError as e:
-			print 'Invalid movieID for line: {0}'.format(idx)
+		movieID = mineMovieID(line, idx, 5)
+		if movieID == -1: # If movie ID is missing, move to next line.
 			continue
 		
-		try:
-			rawGenres = line[3]
-			workingGenres = parseObject(movieID, rawGenres, 'genre')
-			genreLines = extractGenres(movieID, workingGenres)
-			genres.extend(genreLines)
-		except IndexError as e:
-			print 'Missing genre for movie ID: {0}'.format(movieID) 
-		try:
-			rawPCs = line[12]
-			prodComps = parseObject(movieID, line[12], 'prod comp')
-			pcLines = extractProdComps(movieID, prodComps)
-			pcs.extend(pcLines)
-		except IndexError as e:
-			print 'Missing prod comp for movie ID: {0}'.format(movieID)
+		# Mine & Extract Genres
+		workingGenres = mineListObj(line, 'genre', 3, movieID)
+		genreLines = extractGenres(movieID, workingGenres) if workingGenres is not None else []
+		genres.extend(genreLines)
+
+		workingPCs = mineListObj(line, 'prod comp', 12, movieID)
+		pcLines = extractProdComps(movieID, workingPCs) if workingPCs is not None else []
+		pcs.extend(pcLines)
 		
 		# Modular extraction & append to respective output lists
 		movieLine = extractMain(movieID, line)
 		movies.append(movieLine)
 		
-		
-		
-		
-		
-	return (movies, genres, pcs)
-		
-	
 	# Write out files
-	
+	writeOut(movies, 'movies.csv')
+	writeOut(genres, 'genres.csv')
+	writeOut(pcs, 'prod_comps.csv')
 	
 	print 'done!'
