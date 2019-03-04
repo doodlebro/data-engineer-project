@@ -1,61 +1,32 @@
-# Overview
-The goal of this project is to get an idea of:
-* Your ability to work with and grok data 
-* Your software engineering skill 
-* Your system design skill 
-
-
-The data used for this project will be The Movies Dataset (pulled from https://www.kaggle.com/rounakbanik/the-movies-dataset).
-Please use the copy of the data set provided at https://s3-us-west-2.amazonaws.com/com.guild.us-west-2.public-data/project-data/the-movies-dataset.zip
-# Requirements
-
-There are three goals to this project:
-* Design a data model that can be used to answer a series of questions. 
-* Implement a program that transforms the input data into a form usable by the data model
-* Design a system that can leverage the data model and program to provide real time access to the data (This is a design task, do not implement)
-
-The designed data model must expose the following information: 
-
-* Production Company Details:
-    * budget per year
-    * revenue per year
-    * profit per year
-    * releases by genre per year
-    * average popularity of produced movies per year
-    
-* Movie Genre Details:
-    * most popular genre by year
-    * budget by genre by year
-    * revenue by genre by year
-    * profit by genre by year
-
-# Deliverables
-
-Fork this repository and complete all relevant tasks in that forked repository
-
-## Data Model 
-Please provide a visual diagram of the chosen data model. 
-
+## Data Model
+[Data Model](data_model.png)
 
 ## Implementation
-The input for the program will be the raw data (CSV files) in The Movies Dataset.
-The output for the program will be one or more files that can be used to hydrate the data model. 
 
-Feel free to use any language you are comfortable with. (A JVM language or Python is preferable if possible)
+* Lives in hydrate_model.py
 
 
-## Design
-The goal of the design task is to design a system that exposes this data to end users via an HTTP API.
-When designing the system focus on the high level design of the system and how parts of it will interact. 
-You don't need to go very deep on the API, don't worry about defining routes/types/etc. 
+## System Design
+[High level illustration (Whimsical chart)](https://whimsical.co/CXwom5A4cHgERX74bCFWnk)
 
-Assumptions: 
-* New data files are received monthly
-* The system should be scalable
+#### Notes on Data Transformation
+* Since data is received monthly, an admin would automate processes for that data to drop (securely) to S3 so that hydration can begin.
+* Scales well since each added transformation task is trivial to monitor.
+* Authentication/security is important here since we don't want just anyone sending data to our S3 buckets.
+* This admin owns all backend failure recovery.
 
-The design should include: 
-* Data transformation - using the program implemented above
-* Data storage - How will the data be stored?
-* Data serving - How will users access the data?
+#### Notes on Data Storage
+* S3 & Redshift are inexpensive relative to the power they provide. Both together can support thousands of individual data sources and transformations
+* Storing the data as closely to the way it came in makes debugging and data integrity issues easier to spot than if we front-load aggregated calculations into hydrate_model.py.
+* Minimal failures should come from here since the data is prepared in the prior step.
+* Authentication treated the same here as Data Transformation
 
-Be sure to discuss issues and trade-offs around scaling, monitoring, failure recovery, authentication, etc... 
+#### Notes on Data Serving
+* The frontend would start with selectors for genres and production companies. These selectors would allow users to choose one or many of each.
+* The final two selectors would decide which metric is being aggregated and how (average budget, total revenue, etc).
+* These selectors would be the base for a SQL Builder which spits out a query based on the selectors.
+* This does add the need for SQL experts and analysts to maintain and keep things neat/according to spec, but with self serve data reporting I like the philosophy of 'Have as many eyes as possible on things' over 'Set and forget it.'
+* All together, the four selectors form a 'question' which runs the built SQL on Redshift
+* After running a 'question' and fetching data, Ideally offer raw data to download by the user as well as simple visualization for quick analyses
+* Ideally lives in Looker, but can be engineered simply using a tornado server or similar
+* Authentication/security less of a problem here due to lack of PII and 'on-rails' nature of building SQL queries based on selectors with limited choices.
